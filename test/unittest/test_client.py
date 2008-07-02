@@ -131,7 +131,7 @@ class TestTest(BaseTest):
         import datetime
         dt = datetime.datetime(1974, 1, 5, 11, 59 ,0,0, None)
         import xmlrpclib
-        data = xmlrpclib.DateTime(dt)
+        data = xmlrpclib.DateTime(dt.timetuple())
         self._echo_test(data)
 
 
