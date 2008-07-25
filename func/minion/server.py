@@ -13,6 +13,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 """
 
 # standard modules
+import glob
+import os
 import SimpleXMLRPCServer
 import string
 import sys
@@ -176,11 +178,19 @@ class FuncSSLXMLRPCServer(AuthedXMLRPCServer.AuthedSSLXMLRPCServer,
         self.modules = module_loader.load_modules()
 
         XmlRpcInterface.__init__(self)
-        hn = utils.get_hostname()
+        no_cert = False
+        hn = self._find_hostname(self.cm_config.cert_dir)
+        if hn is None:
+            no_cert = True
+
+        if no_cert:
+            requester.request_cert()
+
+        
         self.key = "%s/%s.pem" % (self.cm_config.cert_dir, hn)
         self.cert = "%s/%s.cert" % (self.cm_config.cert_dir, hn)
         self.ca = "%s/ca.cert" % self.cm_config.cert_dir
-        
+            
         self._our_ca = certs.retrieve_cert_from_file(self.ca)
 
         self.acls = acls_mod.Acls(config=self.config)
@@ -188,6 +198,21 @@ class FuncSSLXMLRPCServer(AuthedXMLRPCServer.AuthedSSLXMLRPCServer,
         AuthedXMLRPCServer.AuthedSSLXMLRPCServer.__init__(self, ("", 51234),
                                                           self.key, self.cert,
                                                           self.ca)
+    def _find_hostname(self, cert_dir):
+        # this is a bit ugly, but it will work for now
+        pemfile = glob.glob("%s/*.pem" % cert_dir)
+        if len(pemfile) == 0:
+            return None
+        filename = os.path.basename(pemfile[0])
+        name = filename.split('.')[0]
+        return name
+
+    def _find_certs(self):
+        no_cert = True
+        if os.access(self.key, os.R_OK) and os.access(self.cert, os.R_OK) and \
+           os.access(self.ca, os.R_OK):
+            no_cert = False
+        return no_cert
 
     def _dispatch(self, method, params):
 
@@ -253,7 +278,6 @@ def main(argv):
         print "serving...\n"
 
     try:
-        requester.request_cert()
         serve()
     except codes.FuncException, e:
         print >> sys.stderr, 'error: %s' % e
