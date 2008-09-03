@@ -256,6 +256,10 @@ class TestMount(BaseTest):
         result = self.overlord.mount.list()
         self.assert_on_fault(result)
 
+    def test_df(self):
+        result = self.overlord.mount.df()
+        self.assert_on_fault(result)
+
     # INSERT some clever way to test mount here
 
 

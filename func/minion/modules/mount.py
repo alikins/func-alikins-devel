@@ -24,11 +24,8 @@ class MountModule(func_module.FuncModule):
     description = "Mounting, unmounting and getting information on mounted filesystems."
 
     def list(self):
-        cmd = sub_process.Popen(["/bin/cat", "/proc/mounts"], executable="/bin/cat", stdout=sub_process.PIPE, shell=False)
-        data = cmd.communicate()[0]
-        
+        lines = open('/proc/mounts', 'r').readlines()
         mounts = []
-        lines = [l for l in data.split("\n") if l] #why must you append blank crap?
 
         for line in lines:
             curmount = {}
@@ -58,6 +55,22 @@ class MountModule(func_module.FuncModule):
             return True
         else:
             return False
+
+    def df(self):
+        mountpoints = {}
+        mounts = open('/proc/mounts', 'r')
+        for line in mounts.readlines():
+            splitted = line.split()
+            vfstat = os.statvfs(splitted[1])
+            if vfstat.f_blocks == vfstat.f_bfree == 0:
+                continue                    # ignore dummy filesystems
+            mountpoints[splitted[1]] = (vfstat.f_blocks * vfstat.f_bsize / 1024,
+                                        vfstat.f_bfree  * vfstat.f_bsize / 1024,
+                                        splitted[0], splitted[2])
+            # max 2^32 * 1024 -> 4Ti
+        return mountpoints
+
+
         
     def umount(self, dir, killall=False, force=False, lazy=False):
         # succeed if its not mounted
@@ -149,6 +162,10 @@ class MountModule(func_module.FuncModule):
                     },
                     'description':"Unmounting the specified directory."
                     },
+                 'df':{'args':{},
+                    'description':"Get size and free space on mounted filesystems"
+                    },
+        
                 'inventory':{'args':{
                     'flatten':{
                         'type':'boolean',
