@@ -57,7 +57,8 @@ if __name__ == "__main__":
 			    "%s/minion/modules.iptables" % NAME
                 ],
                 data_files = [(initpath, ["init-scripts/funcd"]),
-                              (etcpath,  ["etc/minion.conf",
+                              (etcpath,  [
+					  #"etc/minion.conf",
 					  "etc/overlord.conf",
 					  "etc/async_methods.conf",
 					  "etc/version"]),

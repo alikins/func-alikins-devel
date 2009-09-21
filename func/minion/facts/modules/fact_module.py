@@ -35,9 +35,14 @@ class BaseFactModule(object):
         """
         conflicts = {}
         for attr in dir(self):
+            self.logger.debug("register_facts: attr: %s" % attr)
             if self.__is_public_valid_method(attr):
+                # we check for public methods on fact modules first
                 fact_method = getattr(self, attr)
                 fact_callers["%s.%s"%(module_name,attr)] = fact_method
+                self.logger.debug("register_facts method: %s" % (fact_method))
+
+                # then "tag" attributes
                 if hasattr(fact_method,"tag"):
                     method_tag = getattr(fact_method,"tag")
                     if fact_callers.has_key(method_tag):

@@ -87,6 +87,13 @@ class CommandAutomagic(object):
 # this is a module level def so we can use it and isServer() from
 # other modules with a Overlord class
 
+
+# we can make port be configured per minion...
+# we also need minion aliases (not exactly a group or one, since
+# groups imply "@group" syntax and different namespace
+
+# atm, the api is just "get all", get matching, and "get all wellformed (get_urls)"
+# we need to add crud type api... but, that kind of 
 class Minions(object):
     def __init__(self, spec, port=51234, 
                  noglobs=None, verbose=None,
@@ -101,6 +108,10 @@ class Minions(object):
         self.delegate = delegate
         self.minionmap = minionmap
         self.exclude_spec = exclude_spec
+        
+        # read in the config file and populate this class
+        self.minion_aliases = {'testname':'alikins.usersys.redhat.com'}
+        self.search_prefix = "redhat.com"
 
         self.cm_config = read_config(CONFIG_FILE, CMConfig)
         self.group_class = groups.Groups(backend=groups_backend,**kwargs)
@@ -140,8 +151,21 @@ class Minions(object):
         tmp_certs = set()
         tmp_hosts = set()
 
+        # look up name to see if it is an alias and use it
+        # NOTE: alias are minions lookup backend specific, some may not
+        # support the concept
+        if self.minion_aliases.has_key(each_gloob):
+            each_gloob = self.minion_aliases[each_gloob]
+
+        #FIXME: we could easily add a search prefix, it would make things easier...
+
         actual_gloob = "%s/%s.%s" % (self.cm_config.certroot, each_gloob, self.cm_config.cert_extension)
         certs = glob.glob(actual_gloob)
+
+        # nothing found? try the search prefix
+        if len(certs) == 0 and self.search_prefix:
+             actual_gloob = "%s/%s.%s.%s" % (self.cm_config.certroot, each_gloob, self.search_prefix, self.cm_config.cert_extension)
+             certs = glob.glob(actual_gloob)
         
         # pull in peers if enabled for minion-to-minion
         if self.cm_config.peering:
@@ -311,6 +335,7 @@ class Overlord(object):
 
         self.methods = module_loader.load_methods('func/overlord/modules/', overlord_module.BaseModule, self)
             
+    #FIXME: why does this have args? it never gets called with them?
     def setup_ssl(self, client_key=None, client_cert=None, ca=None):
         # defaults go:
           # certmaster key, cert, ca
@@ -318,6 +343,10 @@ class Overlord(object):
           # raise FuncClientError
         ol_key = '%s/certmaster.key' % self.cm_config.cadir
         ol_crt = '%s/certmaster.crt' % self.cm_config.cadir
+
+        #FIXME: this shouldn't need to take the routable hostname into
+        # account, the name here is just to find the certmaster certs
+        # not the minions...
         myname = func_utils.get_hostname_by_route()
 
         # FIXME: should be config -akl?
@@ -612,7 +641,6 @@ class Overlord(object):
         def process_server(bucketnumber, buckets, server):
             
             conn = sslclient.FuncServer(server, self.key, self.cert, self.ca, self.timeout)
-            # conn = xmlrpclib.ServerProxy(server)
 
             if self.interactive:
                 sys.stderr.write("on %s running %s %s (%s)\n" % (server,

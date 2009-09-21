@@ -61,6 +61,16 @@ class FactsModule(func_module.FuncModule):
             if name == method_name:
                 return method() 
         return {}
+
+
+    def list_facts(self):
+        """
+        Find and display all the facts we know about"
+        """
+        facts = []
+        for name,method in minion_query.load_fact_methods().iteritems():
+            facts.append((name, method()))
+        return facts
     
     @func_module.findout
     def grep(self, word):
